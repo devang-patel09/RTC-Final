@@ -24,7 +24,7 @@ A production-grade, AI-powered bug tracking and project management platform buil
 - Cloudinary (file uploads)
 - Nodemailer
 - Node Cron
-- Swagger API Docs
+- Postman API Docs
 
 ## Features
 
