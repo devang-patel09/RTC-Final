@@ -20,6 +20,7 @@ import Users from './pages/Users';
 import Organization from './pages/Organization';
 import AdminDashboard from './pages/AdminDashboard';
 import ProjectActivity from './pages/ProjectActivity';
+import AcceptInvite from './pages/AcceptInvite';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -47,7 +48,7 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/invite/:token" element={<Login />} />
+      <Route path="/invite/:token" element={<AcceptInvite />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="projects" element={<Projects />} />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Plus, Play, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
+import { Plus, Play, CheckCircle, XCircle, BarChart3, Edit3, Trash2 } from 'lucide-react';
 import { cn, formatDate } from '../utils/cn';
 import toast from 'react-hot-toast';
 
@@ -52,8 +52,10 @@ export default function Sprints() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(null);
   const [expandedSprint, setExpandedSprint] = useState(null);
   const [form, setForm] = useState({ name: '', goal: '', startDate: '', endDate: '' });
+  const [editForm, setEditForm] = useState({ name: '', goal: '', startDate: '', endDate: '' });
 
   const { data: sprints } = useQuery({
     queryKey: ['sprints', projectId],
@@ -66,6 +68,18 @@ export default function Sprints() {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/projects/${projectId}/sprints/${id}`, data),
+    onSuccess: () => { queryClient.invalidateQueries(['sprints', projectId]); setShowEditModal(null); toast.success('Sprint updated!'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/projects/${projectId}/sprints/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries(['sprints', projectId]); toast.success('Sprint deleted!'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
+  });
+
   const actionMutation = useMutation({
     mutationFn: ({ id, action }) => api.post(`/projects/${projectId}/sprints/${id}/${action}`),
     onSuccess: () => { queryClient.invalidateQueries(['sprints', projectId]); toast.success('Sprint updated!'); },
@@ -74,6 +88,11 @@ export default function Sprints() {
 
   const update = (key) => (e) => setForm(p => ({ ...p, [key]: e.target.value }));
   const statusColors = { planned: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', completed: 'bg-secondary-100 text-secondary-700 dark:bg-secondary-700 dark:text-secondary-300', cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' };
+
+  const openEdit = (s) => {
+    setEditForm({ name: s.name, goal: s.goal || '', startDate: s.startDate?.split('T')[0] || '', endDate: s.endDate?.split('T')[0] || '' });
+    setShowEditModal(s._id);
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -95,6 +114,9 @@ export default function Sprints() {
                 <p className="text-xs text-secondary-400 mt-1">{formatDate(s.startDate)} - {formatDate(s.endDate)}</p>
               </div>
               <div className="flex gap-1">
+                {(s.status === 'planned' || s.status === 'active') && (
+                  <button onClick={() => openEdit(s)} className="btn-sm btn-ghost"><Edit3 className="w-3 h-3" /></button>
+                )}
                 {s.status === 'planned' && <button onClick={() => actionMutation.mutate({ id: s._id, action: 'start' })} className="btn-sm btn-secondary"><Play className="w-3 h-3" /> Start</button>}
                 {s.status === 'active' && (
                   <>
@@ -102,7 +124,13 @@ export default function Sprints() {
                     <button onClick={() => actionMutation.mutate({ id: s._id, action: 'complete' })} className="btn-sm btn-primary"><CheckCircle className="w-3 h-3" /> Complete</button>
                   </>
                 )}
+                {s.status === 'completed' && (
+                  <button onClick={() => setExpandedSprint(expandedSprint === s._id ? null : s._id)} className="btn-sm btn-ghost"><BarChart3 className="w-3 h-3" /></button>
+                )}
                 {(s.status === 'planned' || s.status === 'active') && <button onClick={() => actionMutation.mutate({ id: s._id, action: 'cancel' })} className="btn-sm btn-secondary text-danger"><XCircle className="w-3 h-3" /></button>}
+                {s.status === 'planned' && (
+                  <button onClick={() => { if (confirm('Delete this sprint?')) deleteMutation.mutate(s._id); }} className="btn-sm btn-secondary text-danger"><Trash2 className="w-3 h-3" /></button>
+                )}
               </div>
             </div>
             {expandedSprint === s._id && <SprintStats sprintId={s._id} projectId={projectId} />}
@@ -110,6 +138,30 @@ export default function Sprints() {
         ))}
         {(!sprints || sprints.length === 0) && <p className="text-center text-secondary-500 py-8">No sprints yet</p>}
       </div>
+
+      {showEditModal && (() => {
+        const s = sprints?.find(sp => sp._id === showEditModal);
+        if (!s) return null;
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowEditModal(null)}>
+            <div className="bg-white dark:bg-secondary-800 rounded-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+              <h2 className="text-lg font-bold mb-4">Edit Sprint</h2>
+              <form onSubmit={e => { e.preventDefault(); updateMutation.mutate({ id: showEditModal, data: editForm }); }} className="space-y-4">
+                <div><label className="label">Sprint Name</label><input className="input" value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} required /></div>
+                <div><label className="label">Goal</label><textarea className="input" value={editForm.goal} onChange={e => setEditForm(p => ({ ...p, goal: e.target.value }))} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="label">Start Date</label><input type="date" className="input" value={editForm.startDate} onChange={e => setEditForm(p => ({ ...p, startDate: e.target.value }))} required /></div>
+                  <div><label className="label">End Date</label><input type="date" className="input" value={editForm.endDate} onChange={e => setEditForm(p => ({ ...p, endDate: e.target.value }))} required /></div>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button type="button" onClick={() => setShowEditModal(null)} className="btn-secondary">Cancel</button>
+                  <button type="submit" disabled={updateMutation.isPending} className="btn-primary">{updateMutation.isPending ? 'Saving...' : 'Save'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>

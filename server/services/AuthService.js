@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
+const Workspace = require('../models/Workspace');
 const RefreshToken = require('../models/RefreshToken');
 const config = require('../config');
 const { AppError } = require('../utils/errors');
@@ -31,10 +32,15 @@ class AuthService {
     const verificationToken = generateToken();
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+    const accountType = data.accountType || (data.organizationName ? 'organization' : 'individual');
     let organizationId = null;
+    let workspaceId = null;
     let userRole = ROLES.DEVELOPER;
 
-    if (data.organizationName) {
+    if (accountType === 'organization') {
+      if (!data.organizationName) {
+        throw new AppError('Organization name is required for organization accounts', 400);
+      }
       const slug = data.organizationName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
@@ -58,14 +64,34 @@ class AuthService {
       fullName: data.fullName,
       email: data.email,
       password: data.password,
+      accountType,
       role: userRole,
       organizationId,
+      workspaceId,
       verificationToken,
       verificationTokenExpires,
     });
 
-    if (organizationId) {
+    if (accountType === 'organization') {
       await Organization.findByIdAndUpdate(organizationId, { owner: user._id });
+      const workspace = await Workspace.create({
+        name: data.organizationName,
+        owner: user._id,
+        type: 'organization',
+        organizationId,
+      });
+      workspaceId = workspace._id;
+      user.workspaceId = workspaceId;
+      await user.save();
+    } else {
+      const workspace = await Workspace.create({
+        name: `${data.fullName}'s Workspace`,
+        owner: user._id,
+        type: 'personal',
+      });
+      workspaceId = workspace._id;
+      user.workspaceId = workspaceId;
+      await user.save();
     }
 
     const verifyUrl = `${config.clientUrl}/verify-email?token=${verificationToken}`;
@@ -204,6 +230,45 @@ class AuthService {
     }
     const user = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true });
     if (!user) throw new AppError('User not found', 404);
+    return user;
+  }
+
+  async createOrganization(userId, organizationName) {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found', 404);
+    if (user.accountType === 'organization') {
+      throw new AppError('You already belong to an organization', 400);
+    }
+
+    const slug = organizationName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    const org = await Organization.create({
+      name: organizationName,
+      slug,
+      owner: user._id,
+      plan: 'free',
+      subscriptionPlan: 'free',
+      status: 'active',
+      maxProjects: 5,
+      maxMembers: 10,
+    });
+
+    const workspace = await Workspace.create({
+      name: organizationName,
+      owner: user._id,
+      type: 'organization',
+      organizationId: org._id,
+    });
+
+    user.accountType = 'organization';
+    user.organizationId = org._id;
+    user.workspaceId = workspace._id;
+    user.role = ROLES.ORG_ADMIN;
+    await user.save();
+
     return user;
   }
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, changePasswordSchema } = require('../validators/auth');
+const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, changePasswordSchema, createOrganizationSchema } = require('../validators/auth');
 const authController = require('../controllers/authController');
 
 /**
@@ -103,5 +103,7 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), au
  *     summary: Delete user account
  */
 router.delete('/me', authenticate, authController.deleteAccount);
+
+router.post('/create-organization', authenticate, validate(createOrganizationSchema), authController.createOrganization);
 
 module.exports = router;

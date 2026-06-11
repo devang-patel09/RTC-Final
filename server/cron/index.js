@@ -1,7 +1,6 @@
 const cron = require('node-cron');
 const Bug = require('../models/Bug');
 const Notification = require('../models/Notification');
-const User = require('../models/User');
 
 const startCronJobs = () => {
   cron.schedule('0 * * * *', async () => {

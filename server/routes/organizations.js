@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, requirePermission, organizationAccess } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { PERMISSIONS } = require('../config/permissions');
 const orgController = require('../controllers/organizationController');
 

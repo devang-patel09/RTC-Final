@@ -23,6 +23,11 @@ const userSchema = new mongoose.Schema({
     minlength: [8, 'Password must be at least 8 characters'],
     select: false,
   },
+  accountType: {
+    type: String,
+    enum: ['individual', 'organization'],
+    default: 'organization',
+  },
   role: {
     type: String,
     enum: ['super_admin', 'org_admin', 'project_manager', 'developer', 'tester', 'viewer'],
@@ -31,6 +36,10 @@ const userSchema = new mongoose.Schema({
   organizationId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
+  },
+  workspaceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Workspace',
   },
   avatar: {
     type: String,

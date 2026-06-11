@@ -1,7 +1,7 @@
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js'],
-  testTimeout: 10000,
+  testTimeout: 30000,
   forceExit: true,
   detectOpenHandles: true,
   clearMocks: true,

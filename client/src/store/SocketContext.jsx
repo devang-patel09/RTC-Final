@@ -30,7 +30,8 @@ export const SocketProvider = ({ children }) => {
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5,
     });
 
     s.on('connect', () => setConnected(true));
@@ -47,9 +48,9 @@ export const SocketProvider = ({ children }) => {
     s.on('user_offline', (data) => setOnlineUsers(prev => prev.filter(u => u.userId !== data.userId)));
     s.on('user_status_change', (data) => setOnlineUsers(prev => prev.map(u => u.userId === data.userId ? { ...u, status: data.status } : u)));
 
-    s.on('user_typing', (data) => {
+      s.on('user_typing', (data) => {
       const key = `${data.bugId}:${data.userId}`;
-      setTypingUsers(prev => data.isTyping ? { ...prev, [key]: data } : (delete prev[key], { ...prev }));
+      setTypingUsers(prev => data.isTyping ? { ...prev, [key]: data } : (() => { const copy = { ...prev }; delete copy[key]; return copy; })());
       if (data.isTyping) {
         clearTimeout(typingTimeouts.current[key]);
         typingTimeouts.current[key] = setTimeout(() => {

@@ -4,7 +4,6 @@ const User = require('../models/User');
 
 const onlineUsers = new Map();
 const userSockets = new Map();
-const typingTimers = new Map();
 
 class SocketService {
   initialize(io) {

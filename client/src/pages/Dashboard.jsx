@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { FolderKanban, Bug, CheckCircle, TrendingUp, Activity } from 'lucide-react';
+import { useAuth } from '../store/AuthContext';
+import { FolderKanban, Bug, CheckCircle, TrendingUp, Activity, User, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { formatDateShort } from '../utils/cn';
 
 const COLORS = ['#285A48', '#408A71', '#B0E4CC', '#5DBF96', '#8AD4B3'];
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isIndividual = user?.accountType === 'individual';
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: () => api.get('/projects').then(r => r.data.data) });
   const { data: userAnalytics } = useQuery({ queryKey: ['userAnalytics'], queryFn: () => api.get('/analytics/user').then(r => r.data.data) });
 
@@ -18,19 +21,41 @@ export default function Dashboard() {
     { label: 'Completion Rate', value: `${userAnalytics?.completionRate || 0}%`, icon: TrendingUp, color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
   ];
 
-  const chartData = [
-    { name: 'Mon', bugs: 4 }, { name: 'Tue', bugs: 7 }, { name: 'Wed', bugs: 5 },
-    { name: 'Thu', bugs: 9 }, { name: 'Fri', bugs: 6 }, { name: 'Sat', bugs: 3 }, { name: 'Sun', bugs: 2 },
-  ];
+  const chartData = userAnalytics?.bugsByWeek?.length > 0
+    ? userAnalytics.bugsByWeek.map(d => ({ name: d._id || d.date, bugs: d.count }))
+    : [];
 
-  const pieData = [
-    { name: 'To Do', value: 12 }, { name: 'In Progress', value: 8 },
-    { name: 'In Review', value: 4 }, { name: 'Resolved', value: 15 }, { name: 'Closed', value: 6 },
-  ];
+  const STATUS_NAMES = { backlog: 'Backlog', todo: 'To Do', in_progress: 'In Progress', in_review: 'In Review', resolved: 'Resolved', closed: 'Closed' };
+  const pieData = userAnalytics?.statusDistribution?.length > 0
+    ? userAnalytics.statusDistribution.map(d => ({ name: STATUS_NAMES[d._id] || d._id, value: d.count }))
+    : [];
+
+  const COLORS_MAP = ['#285A48', '#408A71', '#B0E4CC', '#5DBF96', '#8AD4B3', '#2D6A4F'];
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="flex items-center gap-3 mb-2">
+        <div className={`p-2 rounded-lg ${isIndividual ? 'bg-green-50 dark:bg-green-900/20' : 'bg-primary-50 dark:bg-primary-900/20'}`}>
+          {isIndividual ? <User className="w-5 h-5 text-green-600" /> : <Building2 className="w-5 h-5 text-primary-600" />}
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">{isIndividual ? 'Personal Dashboard' : 'Organization Dashboard'}</h1>
+          <p className="text-sm text-secondary-500">{isIndividual ? 'Your personal workspace overview' : 'Team-wide overview'}</p>
+        </div>
+      </div>
+      {isIndividual && (
+        <div className="flex items-center justify-between p-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-5 h-5 text-primary-600" />
+            <div>
+              <p className="text-sm font-medium text-primary-800 dark:text-primary-300">Working with a team?</p>
+              <p className="text-xs text-primary-600 dark:text-primary-400">Create an organization to collaborate with others.</p>
+            </div>
+          </div>
+          <Link to="/settings" className="btn-primary btn-sm text-xs">Create Organization</Link>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => (
           <div key={s.label} className="card p-5">
@@ -46,6 +71,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card p-5">
           <h3 className="font-semibold mb-4">Bug Activity (This Week)</h3>
+          {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#c5d9ce" />
@@ -55,22 +81,27 @@ export default function Dashboard() {
               <Bar dataKey="bugs" fill="#285A48" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+          ) : <p className="text-sm text-secondary-400 text-center py-8">No data available yet</p>}
         </div>
         <div className="card p-5">
           <h3 className="font-semibold mb-4">Bug Status Distribution</h3>
+          {pieData.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                {pieData.map((_, i) => <Cell key={i} fill={COLORS_MAP[i % COLORS_MAP.length]} />)}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+          ) : <p className="text-sm text-secondary-400 text-center py-8">No data available yet</p>}
+          {pieData.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mt-2">
             {pieData.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-1.5 text-xs"><div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />{d.name}</div>
+              <div key={d.name} className="flex items-center gap-1.5 text-xs"><div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS_MAP[i] }} />{d.name}</div>
             ))}
           </div>
+          )}
         </div>
       </div>
 

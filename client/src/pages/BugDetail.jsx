@@ -3,8 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useSocket } from '../store/SocketContext';
-import { cn, severityColors, priorityColors, statusColors, statusLabels, formatDate } from '../utils/cn';
-import { MessageSquare, Paperclip, Sparkles, Send, Edit3, Trash2, Clock, User, AlertCircle, AtSign, Plus, Eye, EyeOff, Tag, CheckSquare, CheckCircle2, Circle } from 'lucide-react';
+import { cn, severityColors, priorityColors, statusColors, statusLabels, formatDate, timeAgo } from '../utils/cn';
+import { MessageSquare, Paperclip, Sparkles, Send, Edit3, Trash2, Clock, User, AlertCircle, AtSign, Plus, Eye, EyeOff, Tag, CheckSquare, CheckCircle2, Circle, Activity } from 'lucide-react';
 import { useAuth } from '../store/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import toast from 'react-hot-toast';
@@ -133,6 +133,11 @@ export default function BugDetail() {
     queryFn: () => api.get(`/projects/${projectId}/bugs/labels`).then(r => r.data.data),
   });
 
+  const { data: activities } = useQuery({
+    queryKey: ['bugActivity', bugId],
+    queryFn: () => api.get(`/projects/${projectId}/activity?entityType=bug&entityId=${bugId}`).then(r => r.data.data),
+  });
+
   useEffect(() => { commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [comments]);
 
   useEffect(() => {
@@ -176,7 +181,10 @@ export default function BugDetail() {
   });
 
   const replyMutation = useMutation({
-    mutationFn: ({ body, parentComment, mentions }) => api.post(`/projects/${projectId}/bugs/${bugId}/comments`, { body, parentComment, mentions }),
+    mutationFn: ({ body, parentComment }) => {
+      const mentions = extractMentions(body);
+      return api.post(`/projects/${projectId}/bugs/${bugId}/comments`, { body, parentComment, mentions });
+    },
     onSuccess: () => { queryClient.invalidateQueries(['comments', bugId]); setReplyBody(''); setReplyToComment(null); },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to reply'),
   });
@@ -537,6 +545,27 @@ export default function BugDetail() {
             </div>
           </div>
         )}
+
+        <div className="card p-5">
+          <h3 className="font-semibold mb-3 flex items-center gap-2"><Activity className="w-4 h-4" /> Activity</h3>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {activities?.length > 0 ? activities.slice(0, 10).map(a => (
+              <div key={a._id} className="flex items-start gap-2 text-xs py-1.5 border-b border-secondary-100 dark:border-secondary-700 last:border-0">
+                <div className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Activity className="w-3 h-3 text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-secondary-600 dark:text-secondary-400">
+                    <span className="font-medium text-secondary-700 dark:text-secondary-300">{a.user?.fullName || 'System'}</span>
+                    {' '}{a.action?.replace(/_/g, ' ')}
+                    {a.details?.status && <span className="ml-1 px-1 py-0.5 rounded bg-secondary-100 dark:bg-secondary-700">{a.details.status}</span>}
+                  </p>
+                  <p className="text-secondary-400">{timeAgo(a.createdAt)}</p>
+                </div>
+              </div>
+            )) : <p className="text-xs text-secondary-400 text-center py-4">No activity recorded yet</p>}
+          </div>
+        </div>
       </div>
     </div>
   );

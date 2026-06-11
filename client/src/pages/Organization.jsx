@@ -39,7 +39,16 @@ export default function Organization() {
 
   const inviteMutation = useMutation({
     mutationFn: (data) => api.post('/organizations/me/invite', data),
-    onSuccess: () => { queryClient.invalidateQueries(['orgInvites']); setInviteEmail(''); setShowInvite(false); toast.success('Invite sent!'); },
+    onSuccess: (resp) => {
+      queryClient.invalidateQueries(['orgInvites']);
+      setInviteEmail('');
+      setShowInvite(false);
+      if (resp.data?.warning) {
+        toast.error(resp.data.warning, { duration: 6000 });
+      } else {
+        toast.success('Invite sent!');
+      }
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to invite'),
   });
 
@@ -51,7 +60,13 @@ export default function Organization() {
 
   const resendInviteMutation = useMutation({
     mutationFn: (inviteId) => api.post(`/organizations/me/invites/${inviteId}/resend`),
-    onSuccess: () => { toast.success('Invite resent!'); },
+    onSuccess: (resp) => {
+      if (resp.data?.warning) {
+        toast.error(resp.data.warning, { duration: 6000 });
+      } else {
+        toast.success('Invite resent!');
+      }
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to resend'),
   });
 
@@ -71,6 +86,12 @@ export default function Organization() {
     mutationFn: (data) => api.patch('/organizations/me', data),
     onSuccess: () => { queryClient.invalidateQueries(['organization']); toast.success('Organization updated'); setShowSettings(false); },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to update'),
+  });
+
+  const deleteOrgMutation = useMutation({
+    mutationFn: () => api.delete('/organizations/me'),
+    onSuccess: () => { queryClient.invalidateQueries(['organization']); toast.success('Organization deleted'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to delete'),
   });
 
   const isAdmin = user?.role === ROLES.ORG_ADMIN || user?.role === ROLES.SUPER_ADMIN;
@@ -264,7 +285,7 @@ export default function Organization() {
                 <p className="font-medium text-danger">Danger Zone</p>
                 <p className="text-sm text-secondary-500">Delete organization and all associated data</p>
               </div>
-              <button className="btn-danger btn-sm"><Trash2 className="w-3 h-3" /> Delete Organization</button>
+              <button onClick={() => { if (confirm('Are you sure you want to delete this organization and all associated data? This action cannot be undone.')) deleteOrgMutation.mutate(); }} disabled={deleteOrgMutation.isPending} className="btn-danger btn-sm"><Trash2 className="w-3 h-3" /> {deleteOrgMutation.isPending ? 'Deleting...' : 'Delete Organization'}</button>
             </div>
           </div>
         </div>

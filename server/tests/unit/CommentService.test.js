@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const CommentService = require('../../services/CommentService');
 
 let mongoServer;
 
@@ -20,12 +21,15 @@ beforeEach(async () => {
   }
 });
 
-describe('AuthService mock tests', () => {
-  it('should run with test infrastructure', () => {
-    expect(true).toBe(true);
+describe('CommentService', () => {
+  it('should be defined', () => {
+    expect(CommentService).toBeDefined();
   });
 
-  it('should have mongodb connection', () => {
-    expect(mongoose.connection.readyState).toBe(1);
+  it('should have required methods', () => {
+    expect(typeof CommentService.create).toBe('function');
+    expect(typeof CommentService.getByBug).toBe('function');
+    expect(typeof CommentService.update).toBe('function');
+    expect(typeof CommentService.delete).toBe('function');
   });
 });

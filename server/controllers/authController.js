@@ -135,6 +135,15 @@ exports.changePassword = async (req, res, next) => {
   }
 };
 
+exports.createOrganization = async (req, res, next) => {
+  try {
+    const user = await AuthService.createOrganization(req.userId, req.validatedBody.organizationName);
+    res.json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.deleteAccount = async (req, res, next) => {
   try {
     await AuthService.deleteAccount(req.userId);

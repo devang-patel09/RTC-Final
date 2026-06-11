@@ -1,5 +1,4 @@
 const OrganizationService = require('../services/OrganizationService');
-const { ROLES } = require('../config/permissions');
 
 exports.getMyOrg = async (req, res, next) => {
   try {
@@ -99,7 +98,12 @@ exports.removeMember = async (req, res, next) => {
 exports.invite = async (req, res, next) => {
   try {
     const invite = await OrganizationService.inviteMember(req.user.organizationId, req.body, req.userId);
-    res.status(201).json({ success: true, data: invite });
+    const usingEthereal = !process.env.SMTP_HOST || !process.env.SMTP_PASS;
+    res.status(201).json({
+      success: true,
+      data: invite,
+      warning: usingEthereal ? 'Invite created but email NOT sent — SMTP not configured. Check server console for preview URL.' : undefined,
+    });
   } catch (error) {
     next(error);
   }
@@ -108,7 +112,12 @@ exports.invite = async (req, res, next) => {
 exports.resendInvite = async (req, res, next) => {
   try {
     const invite = await OrganizationService.resendInvite(req.user.organizationId, req.params.inviteId);
-    res.json({ success: true, data: invite });
+    const usingEthereal = !process.env.SMTP_HOST || !process.env.SMTP_PASS;
+    res.json({
+      success: true,
+      data: invite,
+      warning: usingEthereal ? 'Email resent via Ethereal (fake) — SMTP not configured.' : undefined,
+    });
   } catch (error) {
     next(error);
   }

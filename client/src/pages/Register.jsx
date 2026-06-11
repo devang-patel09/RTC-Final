@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
-import { Bug, Eye, EyeOff } from 'lucide-react';
+import { Bug, Eye, EyeOff, User, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const TABS = [
+  { key: 'individual', label: 'Individual', icon: User },
+  { key: 'organization', label: 'Organization', icon: Building2 },
+];
+
 export default function Register() {
+  const [accountType, setAccountType] = useState('individual');
   const [form, setForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '', organizationName: '' });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,7 +23,7 @@ export default function Register() {
     if (form.password.length < 8) return toast.error('Password must be at least 8 characters');
     setLoading(true);
     try {
-      await register(form);
+      await register({ ...form, accountType });
       toast.success('Account created! Check your email to verify.');
       navigate('/');
     } catch (err) {
@@ -43,6 +49,25 @@ export default function Register() {
           </div>
           <h1 className="text-3xl font-bold text-secondary-900 dark:text-white mb-2">Create account</h1>
           <p className="text-secondary-500 mb-8">Get started with your free account</p>
+
+          <div className="flex mb-6 bg-secondary-100 dark:bg-secondary-800 rounded-lg p-1">
+            {TABS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setAccountType(key)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                  accountType === key
+                    ? 'bg-white dark:bg-secondary-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                    : 'text-secondary-500 hover:text-secondary-700 dark:hover:text-secondary-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label">Full Name</label>
@@ -59,10 +84,12 @@ export default function Register() {
                 <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary-400">{showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
               </div>
             </div>
-            <div>
-              <label className="label">Organization Name</label>
-              <input type="text" className="input" placeholder="Your Company or Team" value={form.organizationName} onChange={update('organizationName')} />
-            </div>
+            {accountType === 'organization' && (
+              <div>
+                <label className="label">Organization Name</label>
+                <input type="text" className="input" placeholder="Your Company or Team" value={form.organizationName} onChange={update('organizationName')} required />
+              </div>
+            )}
             <div>
               <label className="label">Confirm Password</label>
               <input type="password" className="input" placeholder="Repeat your password" value={form.confirmPassword} onChange={update('confirmPassword')} required />

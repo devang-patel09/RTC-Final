@@ -9,10 +9,17 @@ const registerSchema = z.object({
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number'),
   confirmPassword: z.string(),
+  accountType: z.enum(['individual', 'organization']).optional(),
   organizationName: z.string().min(1, 'Organization name is required').max(100).optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
+}).refine(data => {
+  if (data.accountType === 'organization' && !data.organizationName) return false;
+  return true;
+}, {
+  message: 'Organization name is required for organization accounts',
+  path: ['organizationName'],
 });
 
 const loginSchema = z.object({
@@ -49,6 +56,10 @@ const updateProfileSchema = z.object({
   }).optional(),
 });
 
+const createOrganizationSchema = z.object({
+  organizationName: z.string().min(1, 'Organization name is required').max(100),
+});
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string()
@@ -62,4 +73,4 @@ const changePasswordSchema = z.object({
   path: ['confirmPassword'],
 });
 
-module.exports = { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, changePasswordSchema };
+module.exports = { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, changePasswordSchema, createOrganizationSchema };

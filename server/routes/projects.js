@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
-const { authenticate, authorize, projectAccess, projectAdmin } = require('../middleware/auth');
+const { authenticate, projectAccess, projectAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createProjectSchema, updateProjectSchema } = require('../validators/project');
 const projectController = require('../controllers/projectController');

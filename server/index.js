@@ -16,6 +16,7 @@ const swaggerSpec = require('./utils/swagger');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const SocketService = require('./services/SocketService');
 const { startCronJobs } = require('./cron');
+const { initTransporter, getSmtpStatus } = require('./utils/email');
 
 const app = express();
 const server = http.createServer(app);
@@ -76,6 +77,7 @@ app.get('/api/v1/health', async (req, res) => {
     uptime: Math.floor((Date.now() - startTime) / 1000),
     environment: config.nodeEnv,
     database: dbStatus[dbState] || 'unknown',
+    smtp: getSmtpStatus(),
     memory: process.memoryUsage(),
   });
 });
@@ -90,6 +92,23 @@ app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/organizations', require('./routes/organizations'));
 app.use('/api/v1/invites', require('./routes/invites'));
 
+app.post('/api/v1/test-email', express.json(), async (req, res) => {
+  try {
+    const { sendEmail, getSmtpStatus } = require('./utils/email');
+    await sendEmail({ to: req.body.to || config.smtp.user, subject: 'Test Email from Bug Tracker', html: '<h1>Test</h1><p>If you see this, email is working!</p>' });
+    const status = getSmtpStatus();
+    res.json({
+      success: true,
+      smtp: status,
+      message: status === 'connected'
+        ? 'Email sent successfully via SMTP!'
+        : 'Email sent via Ethereal (fake SMTP) — recipient will NOT receive it. Check server console for preview URL.',
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, smtp: getSmtpStatus(), message: 'Email failed: ' + err.message });
+  }
+});
+
 if (config.sentryDsn) {
   app.use(Sentry.Handlers.errorHandler());
 }
@@ -101,6 +120,13 @@ const startServer = async () => {
     await connectDB();
     SocketService.initialize(io);
     startCronJobs();
+
+    try {
+      await initTransporter();
+      console.log('Email service initialized');
+    } catch (emailErr) {
+      console.warn('Email init failed (emails will not send):', emailErr.message);
+    }
 
     server.listen(config.port, () => {
       console.log(`Server running on port ${config.port} [${config.nodeEnv}]`);
